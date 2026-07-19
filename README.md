@@ -1,133 +1,93 @@
 # BuzzerPattern
 
-一个面向嵌入式系统的轻量级蜂鸣器提示模式框架。
+面向嵌入式系统的轻量级蜂鸣器提示模式框架。
 
-```
-# BuzzerPattern一个面向嵌入式系统的轻量级蜂鸣器提示模式框架。BuzzerPattern 用于管理设备中的蜂鸣器提示行为，通过 Pattern（模式）描述蜂鸣器动作序列，实现非阻塞、多样化的声音提示。---# 1. 项目简介在嵌入式设备中，蜂鸣器通常用于：- 按键反馈- 操作提示- 测量完成提示- 错误报警- 系统状态提示简单项目通常直接控制 GPIO：```cHAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);HAL_Delay(100);HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
-```
+纯 C 实现，无动态内存，无队列依赖。通过状态机非阻塞执行，支持优先级覆盖。适用于裸机和 FreeRTOS 环境。
 
-但是随着项目复杂度增加，会出现：
+## 特性
 
-- 蜂鸣器控制代码散落
+- **非阻塞** — 状态机驱动，不使用任何 delay
+- **轻量** — 单文件实现，~100 行代码，全部静态分配
+- **即时响应** — 高优先级直接覆盖低优先级，最新事件即时播放
+- **可配置** — Pattern 通过数据表描述，新增提示音无需改代码
+- **平台无关** — 通过回调操作 GPIO，不依赖具体 HAL
 
-- 延时阻塞任务
+## 快速开始
 
-- 多种提示逻辑重复实现
+### 1. 定义 Pattern
 
-- FreeRTOS 环境下阻塞任务
-
-- 提示效果难以维护
-
-BuzzerPattern 的目标：
-
-> 将蜂鸣器提示行为抽象为可配置的 Pattern，通过状态机非阻塞执行。
-
-
-
-
-
-## 9.1 定义短鸣
-
-```
-static const buzzer_step_t beep_short_steps[] ={    {1,100},    {0,100},};static const buzzer_pattern_t beep_short ={    .steps = beep_short_steps,    .length = 2,    .repeat = 1,};
+```c
+static const buzzer_step_t beep_short_steps[] = {
+    { 1, 100 },   /* 响 100ms */
+    { 0, 100 },   /* 停 100ms */
+};
+static const buzzer_pattern_t beep_short = {
+    .steps  = beep_short_steps,
+    .length = 2,
+    .repeat = 1,      /* 播放 1 次 (0 = 无限循环) */
+};
 ```
 
-效果：
+### 2. 实现 GPIO 回调
 
-```
-响100ms停止100ms结束
-```
-
----
-
-## 9.2 定义错误报警
-
-```
-static const buzzer_step_t beep_error_steps[] ={    {1,500},    {0,500},};static const buzzer_pattern_t beep_error ={    .steps = beep_error_steps,    .length = 2,    .repeat = 3,};
+```c
+void buzzer_write(uint8_t level)
+{
+    HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, level);
+}
 ```
 
-效果：
+### 3. 初始化并使用
 
-```
-响500ms停500ms重复3次
-```
+```c
+buzzer_pattern_init(buzzer_write);
 
-## 9.3 播放
+/* 裸机主循环 */
+while (1) {
+    buzzer_pattern_process();   /* 每 10ms 调用一次 */
 
-```
-buzzer_pattern_play(    &beep_error);
-```
-
-# 10. 调度方式
-
-## 裸机
-
-```
-while(1){    buzzer_pattern_process();}
+    if (key_pressed) {
+        buzzer_pattern_play(&beep_short, BUZZER_PRIORITY_LOW);
+    }
+    if (error_occurred) {
+        buzzer_pattern_play(&beep_alarm, BUZZER_PRIORITY_HIGH);
+    }
+}
 ```
 
----
+## 优先级
 
-## FreeRTOS
+三级优先级，高优先级可打断低优先级，低优先级不能打断高优先级：
 
-推荐独立任务：
+| 优先级 | 场景 |
+|--------|------|
+| `BUZZER_PRIORITY_LOW` | 按键反馈 |
+| `BUZZER_PRIORITY_NORMAL` | 操作提示、测量完成 |
+| `BUZZER_PRIORITY_HIGH` | 故障报警 |
 
-```
-void buzzer_task(void *argument){    while(1)    {        buzzer_pattern_process();        vTaskDelay(            pdMS_TO_TICKS(10)        );    }}
-```
+## API
 
-推荐周期：
-
-```
-10ms
-```
-
-# 11. GPIO抽象
-
-BuzzerPattern 不直接依赖 HAL。
-
-不要：
-
-```
-HAL_GPIO_WritePin();
+```c
+void    buzzer_pattern_init(buzzer_write_fn write_fn);
+void    buzzer_pattern_play(const buzzer_pattern_t *pattern, buzzer_priority_t priority);
+void    buzzer_pattern_stop(void);
+void    buzzer_pattern_process(void);       /* 推荐 10ms 周期调用 */
+uint8_t buzzer_pattern_is_idle(void);
 ```
 
-使用接口：
+## 文件结构
 
 ```
-buzzer_write(level);
+inc/buzzer_pattern.h        头文件 (类型定义 + API 声明)
+src/buzzer_pattern.c        核心实现 (状态机 + 优先级)
+examples/main_example.c     使用示例 (裸机 + FreeRTOS)
+docs/design.md              设计文档
 ```
 
-用户实现：
+## 集成
 
-```
-void buzzer_write(uint8_t level){    HAL_GPIO_WritePin(        BEEP_GPIO_Port,        BEEP_Pin,        level    );}
-```
+将 `inc/` 和 `src/` 目录添加到你的 STM32 工程（Keil / IAR / STM32CubeIDE），确保 `inc/` 在头文件搜索路径中。
 
-# 12. 优先级设计
+## License
 
-设备中可能同时存在多个提示：
-
-低优先级：
-
-```
-按键反馈
-```
-
-高优先级：
-
-```
-故障报警
-```
-
-因此支持优先级。
-
-```
-typedef enum{    BUZZER_PRIORITY_LOW,    BUZZER_PRIORITY_NORMAL,    BUZZER_PRIORITY_HIGH,}buzzer_priority_t;
-```
-
-规则：
-
-```
-HIGH覆盖NORMAL覆盖LOW
-```
+MIT
