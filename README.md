@@ -99,6 +99,10 @@ git submodule add https://github.com/darwinstudio/BuzzerPattern.git drivers/Buzz
 
 将 `inc/` 和 `src/` 目录复制到你的 STM32 工程（Keil / IAR / STM32CubeIDE），确保 `inc/` 在头文件搜索路径中。
 
+## 开发工具
+
+本项目使用 [Claude Code](https://claude.ai/code) (Claude CLI) + mimo 2.5 pro 进行设计与编码。
+
 ## License
 
 MIT
