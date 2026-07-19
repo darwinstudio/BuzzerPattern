@@ -1,5 +1,10 @@
 # BuzzerPattern
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Language](https://img.shields.io/badge/language-C-orange.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![Platform](https://img.shields.io/badge/platform-STM32-green.svg)](https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html)
+[![RTOS](https://img.shields.io/badge/RTOS-FreeRTOS-lightgrey.svg)](https://www.freertos.org/)
+
 面向嵌入式系统的轻量级蜂鸣器提示模式框架。
 
 纯 C 实现，无动态内存，无队列依赖。通过状态机非阻塞执行，支持优先级覆盖。适用于裸机和 FreeRTOS 环境。
