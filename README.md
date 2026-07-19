@@ -86,7 +86,18 @@ docs/design.md              设计文档
 
 ## 集成
 
-将 `inc/` 和 `src/` 目录添加到你的 STM32 工程（Keil / IAR / STM32CubeIDE），确保 `inc/` 在头文件搜索路径中。
+### 方式一：Git Submodule
+
+```bash
+cd your-project
+git submodule add https://github.com/darwinstudio/BuzzerPattern.git drivers/BuzzerPattern
+```
+
+将 `drivers/BuzzerPattern/inc` 添加到头文件搜索路径，将 `drivers/BuzzerPattern/src/buzzer_pattern.c` 添加到编译源文件。
+
+### 方式二：手动复制
+
+将 `inc/` 和 `src/` 目录复制到你的 STM32 工程（Keil / IAR / STM32CubeIDE），确保 `inc/` 在头文件搜索路径中。
 
 ## License
 
