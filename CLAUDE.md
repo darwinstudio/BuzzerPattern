@@ -36,6 +36,7 @@ Core flow: User initializes `buzzer_hw` with GPIO port/pin, then calls `Buzzer_I
 - No dedicated task: uses FreeRTOS software timer service task (zero extra stack)
 - No queue: Buzzer_Play() is immediate (replace or discard), prioritizing responsiveness
 - No dynamic memory: all static allocation
+- Thread safe: Buzzer_Play/Stop use taskENTER_CRITICAL to protect shared state
 - Pattern data is `const` (ROM), only runtime state is the single `buzzer_context_t`
 - `repeat=0` means infinite loop, `repeat=N` means play N times total
 - `process()` is internal (static), called only by the timer callback

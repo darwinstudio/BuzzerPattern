@@ -143,13 +143,16 @@ void Buzzer_Init(void)
  * @brief 停止当前播放
  *
  * 立即关闭蜂鸣器并将状态置为空闲。
+ * 内部通过 taskENTER_CRITICAL 保护共享状态，可从任意任务调用。
  * 定时器保留不删除，之后调用 Buzzer_Play() 可直接恢复播放。
  */
 void Buzzer_Stop(void)
 {
+    taskENTER_CRITICAL();
     buzzer_gpio_write(0);
     ctx.state            = STATE_IDLE;
     ctx.current_priority = BUZZER_PRIORITY_LOW;
+    taskEXIT_CRITICAL();
 }
 
 /**
@@ -157,6 +160,7 @@ void Buzzer_Stop(void)
  *
  * 高优先级可打断低优先级，低优先级不能打断高优先级。
  * 重复调用同一优先级时，新 pattern 替换旧 pattern。
+ * 内部通过 taskENTER_CRITICAL 保护共享状态，可从任意任务调用。
  *
  * @param pattern    要播放的 pattern，不可为 NULL
  * @param priority   播放优先级
@@ -167,6 +171,7 @@ void Buzzer_Play(const buzzer_pattern_t *pattern, buzzer_priority_t priority)
         return;
     }
 
+    taskENTER_CRITICAL();
     if (ctx.state == STATE_IDLE || priority > ctx.current_priority) {
         ctx.current_pattern  = pattern;
         ctx.step_index       = 0;
@@ -176,6 +181,7 @@ void Buzzer_Play(const buzzer_pattern_t *pattern, buzzer_priority_t priority)
         ctx.state            = STATE_PLAYING;
         buzzer_gpio_write(pattern->steps[0].on);
     }
+    taskEXIT_CRITICAL();
 }
 
 /**
@@ -186,5 +192,9 @@ void Buzzer_Play(const buzzer_pattern_t *pattern, buzzer_priority_t priority)
  */
 uint8_t Buzzer_IsIdle(void)
 {
-    return ctx.state == STATE_IDLE;
+    uint8_t idle;
+    taskENTER_CRITICAL();
+    idle = (ctx.state == STATE_IDLE);
+    taskEXIT_CRITICAL();
+    return idle;
 }

@@ -137,11 +137,7 @@ git submodule add https://github.com/darwinstudio/BuzzerPattern.git drivers/Buzz
 
 ## 线程安全
 
-本模块使用单个静态上下文，**非线程安全**。
-
-- `Buzzer_Play()` / `Buzzer_Stop()` / `Buzzer_IsIdle()` 可从任意任务调用
-- 内部状态机由 10ms 软件定时器自动调度
-- `Buzzer_Stop()` 立即关闭蜂鸣器并置空闲状态
+`Buzzer_Play()`、`Buzzer_Stop()` 和 `Buzzer_IsIdle()` 内部通过 `taskENTER_CRITICAL()` / `taskEXIT_CRITICAL()` 保护共享状态，可安全地从任意任务调用。
 
 ## License
 

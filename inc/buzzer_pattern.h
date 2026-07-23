@@ -4,6 +4,7 @@
  *
  * 内部使用 FreeRTOS 软件定时器以 10ms 周期推进状态机。
  * 纯静态分配，零 malloc。通过 HAL 库直接控制 GPIO。
+ * 线程安全: Play/Stop 内部通过 taskENTER_CRITICAL 保护共享状态。
  */
 
 #ifndef BUZZER_PATTERN_H
