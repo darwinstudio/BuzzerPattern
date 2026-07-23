@@ -5,21 +5,31 @@
 [![Platform](https://img.shields.io/badge/platform-STM32-green.svg)](https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html)
 [![RTOS](https://img.shields.io/badge/RTOS-FreeRTOS-lightgrey.svg)](https://www.freertos.org/)
 
-面向嵌入式系统的轻量级蜂鸣器提示模式框架。
+面向 STM32 + FreeRTOS 的轻量级蜂鸣器提示模式框架。
 
-纯 C 实现，无动态内存，无队列依赖。通过状态机非阻塞执行，支持优先级覆盖。适用于裸机和 FreeRTOS 环境。
+纯 C 实现，纯静态分配，无动态内存。内部通过 HAL 库直接控制 GPIO，10ms 软件定时器自动推进状态机，支持优先级覆盖。
 
 ## 特性
 
-- **非阻塞** — 状态机驱动，不使用任何 delay
-- **轻量** — 单文件实现，~100 行代码，全部静态分配
+- **零配置回调** — 用户只需初始化 GPIO 端口和引脚，内部直接调用 HAL_GPIO_WritePin
+- **非阻塞** — 10ms 软件定时器自动推进状态机，无需手动调用
+- **纯静态** — 定时器由 xTimerCreateStatic 创建，零 malloc
+- **低开销** — 无独立任务栈，仅一个 StaticTimer_t
 - **即时响应** — 高优先级直接覆盖低优先级，最新事件即时播放
 - **可配置** — Pattern 通过数据表描述，新增提示音无需改代码
-- **平台无关** — 通过回调操作 GPIO，不依赖具体 HAL
 
 ## 快速开始
 
-### 1. 定义 Pattern
+### 1. 初始化硬件配置
+
+```c
+buzzer_hw_t buzzer_hw = {
+    .port = GPIOA,
+    .pin  = GPIO_PIN_5,
+};
+```
+
+### 2. 定义 Pattern
 
 ```c
 static const buzzer_step_t beep_short_steps[] = {
@@ -33,31 +43,17 @@ static const buzzer_pattern_t beep_short = {
 };
 ```
 
-### 2. 实现 GPIO 回调
-
-```c
-void buzzer_write(uint8_t level)
-{
-    HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, level);
-}
-```
-
 ### 3. 初始化并使用
 
 ```c
-buzzer_pattern_init(buzzer_write);
+Buzzer_Init();
 
-/* 裸机主循环 */
-while (1) {
-    buzzer_pattern_process();   /* 每 10ms 调用一次 */
+/* 从任意任务调用 */
+Buzzer_Play(&beep_short, BUZZER_PRIORITY_LOW);
+Buzzer_Play(&beep_alarm, BUZZER_PRIORITY_HIGH);
 
-    if (key_pressed) {
-        buzzer_pattern_play(&beep_short, BUZZER_PRIORITY_LOW);
-    }
-    if (error_occurred) {
-        buzzer_pattern_play(&beep_alarm, BUZZER_PRIORITY_HIGH);
-    }
-}
+/* 立即关闭蜂鸣器 */
+Buzzer_Stop();
 ```
 
 ## 优先级
@@ -73,20 +69,28 @@ while (1) {
 ## API
 
 ```c
-void    buzzer_pattern_init(buzzer_write_fn write_fn);
-void    buzzer_pattern_play(const buzzer_pattern_t *pattern, buzzer_priority_t priority);
-void    buzzer_pattern_stop(void);
-void    buzzer_pattern_process(void);       /* 推荐 10ms 周期调用 */
-uint8_t buzzer_pattern_is_idle(void);
+/* 硬件配置 (用户定义并初始化) */
+extern buzzer_hw_t buzzer_hw;
+
+/* 初始化模块并启动 10ms 软件定时器 */
+void Buzzer_Init(void);
+
+/* 停止播放，蜂鸣器立即关闭；之后调用 Buzzer_Play() 可直接恢复 */
+void Buzzer_Stop(void);
+
+/* 从任意任务调用，启动或切换 pattern */
+void Buzzer_Play(const buzzer_pattern_t *pattern, buzzer_priority_t priority);
+
+/* 查询是否空闲 */
+uint8_t Buzzer_IsIdle(void);
 ```
 
 ## 文件结构
 
 ```
 inc/buzzer_pattern.h        头文件 (类型定义 + API 声明)
-src/buzzer_pattern.c        核心实现 (状态机 + 优先级)
-examples/main_example.c     使用示例 (裸机 + FreeRTOS)
-docs/design.md              设计文档
+src/buzzer_pattern.c        核心实现 (状态机 + 优先级 + 软件定时器)
+examples/main_example.c     使用示例
 ```
 
 ## 集成
@@ -104,9 +108,18 @@ git submodule add https://github.com/darwinstudio/BuzzerPattern.git drivers/Buzz
 
 将 `inc/` 和 `src/` 目录复制到你的 STM32 工程（Keil / IAR / STM32CubeIDE），确保 `inc/` 在头文件搜索路径中。
 
-## 开发工具
+### 前置依赖
 
-本项目使用 [Claude Code](https://claude.ai/code) (Claude CLI) + mimo 2.5 pro 进行设计与编码。
+- STM32 HAL 库 (`main.h` 需包含 GPIO 相关定义)
+- FreeRTOS (需启用 `configUSE_TIMERS` 和 `configSUPPORT_STATIC_ALLOCATION`)
+
+## 线程安全
+
+本模块使用单个静态上下文，**非线程安全**。
+
+- `Buzzer_Play()` / `Buzzer_Stop()` / `Buzzer_IsIdle()` 可从任意任务调用
+- 内部状态机由 10ms 软件定时器自动调度
+- `Buzzer_Stop()` 立即关闭蜂鸣器并置空闲状态
 
 ## License
 
