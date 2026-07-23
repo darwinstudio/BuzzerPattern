@@ -23,32 +23,58 @@
 ### 1. 初始化硬件配置
 
 ```c
+/* buzzer_hw.c */
+#include "buzzer_pattern.h"
+
 buzzer_hw_t buzzer_hw = {
     .port = GPIOA,
     .pin  = GPIO_PIN_5,
 };
 ```
 
-### 2. 定义 Pattern
+### 2. 定义 Pattern (头文件声明，源文件定义)
 
 ```c
+/* buzzer_patterns.h */
+#pragma once
+#include "buzzer_pattern.h"
+
+extern const buzzer_pattern_t beep_short;
+extern const buzzer_pattern_t beep_done;
+extern const buzzer_pattern_t beep_alarm;
+```
+
+```c
+/* buzzer_patterns.c */
+#include "buzzer_patterns.h"
+
 static const buzzer_step_t beep_short_steps[] = {
     { 1, 100 },   /* 响 100ms */
     { 0, 100 },   /* 停 100ms */
 };
-static const buzzer_pattern_t beep_short = {
+const buzzer_pattern_t beep_short = {
     .steps  = beep_short_steps,
     .length = 2,
     .repeat = 1,      /* 播放 1 次 (0 = 无限循环) */
 };
+
+static const buzzer_step_t beep_alarm_steps[] = {
+    { 1, 500 },
+};
+const buzzer_pattern_t beep_alarm = {
+    .steps  = beep_alarm_steps,
+    .length = 1,
+    .repeat = 0,      /* 无限循环 */
+};
 ```
 
-### 3. 初始化并使用
+### 3. 初始化并从任意任务调用
 
 ```c
+/* app_init() 中 */
 Buzzer_Init();
 
-/* 从任意任务调用 */
+/* 传感器任务、按键任务等均可调用 */
 Buzzer_Play(&beep_short, BUZZER_PRIORITY_LOW);
 Buzzer_Play(&beep_alarm, BUZZER_PRIORITY_HIGH);
 

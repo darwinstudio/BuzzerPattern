@@ -14,14 +14,19 @@ buzzer_hw_t buzzer_hw = {
     .pin  = GPIO_PIN_5,
 };
 
-/* ---- Pattern 定义 ---- */
+/* ---- Pattern 定义 ----
+ *
+ * steps 数组为 static (文件内部引用)，buzzer_pattern_t 为非 static (外部链接)。
+ * 其他文件通过 extern 声明即可访问，例如:
+ *   extern const buzzer_pattern_t beep_short;
+ */
 
 /** @brief 单次短响 (按键反馈) */
 static const buzzer_step_t beep_short_steps[] = {
     { 1, 100 },
     { 0, 100 },
 };
-static const buzzer_pattern_t beep_short = {
+const buzzer_pattern_t beep_short = {
     .steps  = beep_short_steps,
     .length = 2,
     .repeat = 1,
@@ -32,7 +37,7 @@ static const buzzer_step_t beep_done_steps[] = {
     { 1, 60 },
     { 0, 60 },
 };
-static const buzzer_pattern_t beep_done = {
+const buzzer_pattern_t beep_done = {
     .steps  = beep_done_steps,
     .length = 2,
     .repeat = 3,
@@ -43,7 +48,7 @@ static const buzzer_step_t beep_error_steps[] = {
     { 1, 500 },
     { 0, 500 },
 };
-static const buzzer_pattern_t beep_error = {
+const buzzer_pattern_t beep_error = {
     .steps  = beep_error_steps,
     .length = 2,
     .repeat = 3,
@@ -53,7 +58,7 @@ static const buzzer_pattern_t beep_error = {
 static const buzzer_step_t beep_alarm_steps[] = {
     { 1, 500 },
 };
-static const buzzer_pattern_t beep_alarm = {
+const buzzer_pattern_t beep_alarm = {
     .steps  = beep_alarm_steps,
     .length = 1,
     .repeat = 0,
